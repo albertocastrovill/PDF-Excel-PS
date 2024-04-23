@@ -1,8 +1,9 @@
-import fitz  # PyMuPDF
+#import fitz  # PyMuPDF
 import pandas as pd
 import os
 
 # Función para extraer texto del PDF
+"""
 def extraer_texto_pdf(ruta_pdf):
     doc = fitz.open(ruta_pdf)
     texto = ""
@@ -11,8 +12,18 @@ def extraer_texto_pdf(ruta_pdf):
     doc.close()
     #print(texto)
     return texto
+"""
+import pdfplumber
 
+def extraer_texto_pdf(ruta_pdf):
+    texto = ""
+    with pdfplumber.open(ruta_pdf) as pdf:
+        for pagina in pdf.pages:
+            texto += pagina.extract_text() or ""
+        print(texto)
+    return texto
 
+"""
 def procesar_texto(texto):
     lineas = texto.split('\n')
     nombre_escuela, grado, grupo = "", "", ""
@@ -23,7 +34,7 @@ def procesar_texto(texto):
     while i < len(lineas):
         linea = lineas[i]
         if "ESCUELA:" in linea:
-            nombre_escuela = lineas[i+11].strip()
+            nombre_escuela = lineas[i+2].strip()
         elif "GRADO:" in linea:
             grado = lineas[i+11].strip()
         elif "GRUPO:" in linea:
@@ -44,6 +55,38 @@ def procesar_texto(texto):
         i += 1  # Incrementar el contador para continuar con la siguiente línea
 
     return nombre_escuela, grado, grupo, alumnos
+"""
+
+def procesar_texto(texto):
+    lineas = texto.split('\n')
+    nombre_escuela, grado, grupo = "", "", ""
+    alumnos = []  # Almacenará tuplas de (CURP, Nombre)
+
+    # Extraer información de la escuela, grado y grupo
+    for linea in lineas:
+        if "ESCUELA:" in linea:
+            nombre_escuela = linea.split("ESCUELA:")[1].split("GRUPO:")[0].strip()
+            grupo = linea.split("GRUPO:")[1].strip()
+        if "GRADO:" in linea:
+            grado = linea.split("GRADO:")[1].strip()
+
+    # Iniciar la extracción de alumnos después de 'NOMBRE DEL ALUMNO'
+    inicio = False
+    for linea in lineas:
+        if "NOMBRE DEL ALUMNO" in linea:
+            inicio = True
+            continue
+        if inicio:
+            if linea.strip() == "FIRMA DIRECTOR NOMBRE Y FIRMA MAESTRO":
+                break
+            partes = linea.split()
+            if len(partes) > 1:  # Verificar que la línea contiene más de un elemento
+                curp = partes[2]  # CURP es el tercer elemento
+                nombre = " ".join(partes[3:])  # El nombre es el resto de la línea
+                alumnos.append((curp, nombre))
+
+    return nombre_escuela, grado, grupo, alumnos
+
 
     
 # Función para crear y guardar el DataFrame como archivo Excel
